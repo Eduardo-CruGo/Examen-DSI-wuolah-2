@@ -45,3 +45,60 @@ libroRouter.get("/libros/:id", async (req, res) => {
     }
 });
 
+libroRouter.patch("/libros/:id", async (req, res) => {
+    try {
+        const allowedUpdates = ["titulo", "autor", "anio", "editorial", "n_paginas", "genero", "resenias"];
+        const actualUpdates = Object.keys(req.body);
+        const isValidUpdate = actualUpdates.every((update) =>
+            allowedUpdates.includes(update),
+        );
+        if (!isValidUpdate) {
+            res.status(400).send({
+                error: "Actualizacion no permitida",
+            });
+        } else {
+            if (req.body.resenias) {
+                for (const resenia of req.body.resenias) {
+                    const lector = await Lector.findById(resenia.lector);
+
+                    if (!lector) {
+                        return res.status(400).send({
+                            error: 'Alguno de los lectores indicados en las reseñas no existe',
+                     });
+                    }
+                }
+            }
+            const newlibro = await Libro.findByIdAndUpdate({ _id: req.params.id}, req.body, {
+                returnDocument: 'after',
+                runValidators: true,
+            }).populate('resenias.lector')
+
+            if (!newlibro) {
+                res.status(404).send({
+                    error: "No se encontro el libro",
+                });
+            } else {
+                res.send(newlibro);
+            }
+            
+        }
+    } catch (error) {
+        res.status(500).send(error)
+    }
+});
+
+libroRouter.delete("/libros/:id", async (req, res) => {
+    try {
+        const libro = await Libro.findByIdAndDelete({_id: req.params.id})
+        if (!libro) {
+            res.status(404).send({
+                error: "No se encontro el libro",
+            });
+        } else {
+            res.send(libro);
+        }
+    } catch (error) {
+        res.status(500).send(error)
+    }
+})
+
